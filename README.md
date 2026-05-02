@@ -40,7 +40,7 @@ export $(cat .env | grep -v '^#' | xargs)
 aws ecr get-login-password --region $DEFAULT_AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$DEFAULT_AWS_REGION.amazonaws.com
 
 # 2. Build cho Linux/AMD64 (BẮT BUỘC với máy Mac Apple Silicon!)
-docker build --platform linux/amd64 --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" -t consultation-app .
+docker build --provenance=false --sbom=false --platform linux/amd64 --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" -t consultation-app .
 
 # 3. Tag image
 docker tag consultation-app:latest $AWS_ACCOUNT_ID.dkr.ecr.$DEFAULT_AWS_REGION.amazonaws.com/consultation-app:latest
@@ -59,10 +59,16 @@ Get-Content .env | ForEach-Object {
 }
 
 # 1. Xác thực Docker với ECR
-aws ecr get-login-password --region $env:DEFAULT_AWS_REGION | docker login --username AWS --password-stdin "$env:AWS_ACCOUNT_ID.dkr.ecr.$env:DEFAULT_AWS_REGION.amazonaws.com"
+# LƯU Ý: KHÔNG dùng pipe "|" của PowerShell trực tiếp (aws ... | docker login) — pipe
+# của PS sẽ decode/encode lại stdout làm hỏng token, ECR sẽ trả 400 Bad Request.
+# Cách an toàn: ghi token ra file UTF-8 không BOM rồi pipe qua cmd.exe.
+$token = aws ecr get-login-password --region $env:DEFAULT_AWS_REGION
+[System.IO.File]::WriteAllText("$env:TEMP\ecr-token.txt", $token, (New-Object System.Text.UTF8Encoding $false))
+cmd.exe /c "type %TEMP%\ecr-token.txt | docker login --username AWS --password-stdin $env:AWS_ACCOUNT_ID.dkr.ecr.$env:DEFAULT_AWS_REGION.amazonaws.com"
+Remove-Item "$env:TEMP\ecr-token.txt" -Force
 
 # 2. Build cho Linux/AMD64
-docker build --platform linux/amd64 --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$env:NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" -t consultation-app .
+docker build --provenance=false --sbom=false --platform linux/amd64 --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$env:NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" -t consultation-app .
 
 # 3. Tag image
 docker tag consultation-app:latest "$env:AWS_ACCOUNT_ID.dkr.ecr.$env:DEFAULT_AWS_REGION.amazonaws.com/consultation-app:latest"
@@ -72,6 +78,8 @@ docker push "$env:AWS_ACCOUNT_ID.dkr.ecr.$env:DEFAULT_AWS_REGION.amazonaws.com/c
 ```
 
 **Lưu ý cho Mac Apple Silicon (M1/M2/M3/M4/M5)**: Tham số `--platform linux/amd64` là BẮT BUỘC. Nếu thiếu, Lambda sẽ báo lỗi "exec format error" vì Lambda mặc định chạy trên kiến trúc amd64.
+
+**Lưu ý cho Docker BuildKit**: Các cờ `--provenance=false --sbom=false` là BẮT BUỘC. Mặc định BuildKit tạo ra **OCI manifest list + attestation manifest** mà AWS Lambda chưa hỗ trợ, sẽ báo lỗi `image manifest, config or layer media type ... is not supported` khi tạo function. Hai cờ này ép buildx ghi ra single Docker manifest v2 mà Lambda đọc được.
 
 #### BƯỚC 3: Thiết lập Lambda
 

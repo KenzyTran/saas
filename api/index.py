@@ -50,7 +50,7 @@ def consultation_summary(
     ]
 
     stream = client.chat.completions.create(
-        model="gpt-5-nano",
+        model="gpt-4.1-mini",
         messages=prompt,
         stream=True,
     )
