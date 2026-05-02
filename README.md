@@ -2,15 +2,7 @@
 
 ## Ví dụ ứng dụng container hóa, deploy lên AWS Lambda Container Image
 
-Repo này được trình bày trong khóa học AI Engineering Production của tôi (tuần 1):
-
-https://edwarddonner.com/curriculum
-
-## Bản hướng dẫn đầy đủ
-
-Đây là bản rút gọn của hướng dẫn Tuần 1 - Ngày 5! Bản đầy đủ ở đây:
-
-https://github.com/ed-donner/production/tree/main/week1
+Repo này được trình bày trong khóa học AI Engineering Production của Ed Donner (tuần 1):
 
 ## Hướng dẫn ngắn gọn
 
